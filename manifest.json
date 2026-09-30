@@ -1,0 +1,52 @@
+{
+    "manifest_version": 3,
+    "name": "Fuzzz",
+    "version": "1.0.0",
+    "permissions": [
+        "windows",
+        "storage"
+    ],
+    "background": {
+        "service_worker":"background.js",
+        "type": "module"
+    },
+    "host_permissions": [
+      "<all_urls>"
+    ],
+    "action": {
+      "default_icon": {
+        "16": "logo_16.png",
+        "32": "logo_32.png"
+      },
+      "default_title": "Fuzzz"
+    },
+    "icons": {
+      "16": "logo_16.png",
+      "32": "logo_32.png",
+      "48": "logo_48.png",
+      "128": "logo_128.png"
+    },
+    "content_scripts": [
+      {
+        "matches": [
+          "<all_urls>"
+        ],
+        "js": [
+          "wasm/equix.js",
+          "content.js"
+        ],
+        "run_at": "document_idle"
+      }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "equix-worker.js",
+                "config.json",
+                "wasm/*"
+            ],
+            "matches": ["<all_urls>"],
+            "use_dynamic_url": true
+        }
+    ]
+  }
