@@ -29,7 +29,7 @@ We use a snapshot of the Equi-X repository with additional wrappers
 ## Limitations
 
 Due to a design decision, Fuzzz does not use anchoring for notes or drawings. They are absolutely positioned. To preserve the user's intended position in the presence of reflow, they will only display at the resolution they were created at.
-To compensate, the Fuzzz panel has standardized resolution options to select from and indicators in each cardinal direction. You can still leave notes at any resolution, but it is encouraged to run your browser at one of the Fuzzz resolutions to maximize usability.
+To compensate, the Fuzzz panel has standardized resolution options to select from and post indicators. You can still leave notes at any resolution, but it is encouraged to run your browser at one of the Fuzzz resolutions to maximize usability.
 
 ## Fuzzz Relay
 
