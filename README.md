@@ -41,3 +41,7 @@ If you would like to run a Relay, email [operations@fuzzz.co](mail://operations@
 
 You are not limited to the default Fuzzz Network and can create
 your own federation, though you will have to build your own client and relays from source as the peers are currently hardcoded.
+
+## Donations
+
+bitcoin://bc1qy3q6j49yg5d97mkshwnruges873t0upam2eh9y
