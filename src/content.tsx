@@ -47,8 +47,6 @@ const gunReady = (async () => {
     
     mesh.hear = function (raw: any, peer: any) {
     
-        console.log("mesh.hear:", raw);
-    
         
         let parsed: any;
     
@@ -153,12 +151,6 @@ const workerBuild = async () =>{
     worker = new Worker(workerBlobUrl);
     
     const wasmBytes = await getEquixWasm();
-
-    console.log(
-        "Received Equi-X WASM:",
-        wasmBytes.byteLength
-    );
-
 
     worker.postMessage({ import: depBlobUrl, wasmBytes });
 
@@ -637,8 +629,7 @@ export default function App() {
     
             if (!response?.keys) {
 
-                console.log('logged out no keys')
-            
+              
                 drawing.current.strokes = []
                 texts.current = [];
                 texts_display.current = [];
@@ -668,8 +659,7 @@ export default function App() {
             forceUpdate(v => v + 1);
         
     
-            console.log("USER RESTORED");
-    
+         
         } catch (err) {
             console.error("RESTORE USER FAILED:", err);
         } finally {
@@ -681,7 +671,6 @@ export default function App() {
         const listener = (request: ExtensionMessage) => {
             if (request.action === "RESTOREUSER") {
 
-                console.log('restore user');
                 restoreUser();
             }
         };
@@ -701,7 +690,6 @@ export default function App() {
         return new Promise((resolve, reject) => { 
             try { 
                 user.auth(alias, password, (ack: any) => { 
-                    console.log("auth ack:", ack); 
                     if (ack.err) { 
                         reject(new Error(ack.err)); 
                     } else if (!user.is) { 
@@ -768,7 +756,6 @@ export default function App() {
           user.create(alias, password, (ack: any) => {
             if (ack.err) {
 
-              console.log('create error')
               reject(new Error(ack.err));
               return;
             }
@@ -776,18 +763,15 @@ export default function App() {
             user.auth(alias, password, (ack: any) => {
               if (ack.err) {
 
-                console.log('auth error: ', ack.err)
                 reject(new Error(ack.err));
               } else if (!user.is) {
 
-                console.log('auth failed')
                 reject(
                   new Error("User created but authentication failed.")
                 );
               } else {
 
                 setLoggedIn(true);
-                console.log('auth success')
 
                 chrome.runtime.sendMessage({
                     action: "STOREUSER",
@@ -843,8 +827,7 @@ export default function App() {
             powRequests.set(id, {
                 resolve: (response:PowChallengeResponse) => {
                     clearTimeout(timeout);
-                    console.log('pow challenge response recieved: ', response);
-
+               
                     const target:bigint = BigInt(response.difficulty);
 
                     workerSolve(
@@ -855,7 +838,6 @@ export default function App() {
                     )
                     .then((solution:PowWorkerSolution) => {
             
-                        console.log("solution:", solution);
             
                         resolve({
                             ...response,
@@ -876,7 +858,6 @@ export default function App() {
             });
     
            
-            console.log('mesh: ', mesh);
     
             const msg = {
                 dam: "fuzzz-pow",
@@ -1078,12 +1059,10 @@ export default function App() {
                     }
                 );
     
-                console.log(signIndex);
                 
             const postKey = `${post._pub}:${post._page}`;
 
-            console.log("write success");
-
+           
             const indexedPost = {
                 _protocol: {
                     version: 1
@@ -1122,8 +1101,7 @@ export default function App() {
             
     
         } catch (error) {
-            console.log("upload error: ", error);
-    
+       
         } finally {
               
             uploading.current = false;
@@ -1140,8 +1118,7 @@ export default function App() {
         version.current++;
         dirty.current = true;
     
-        console.log("markDirty", version);
-    
+       
         syncNow()
     }
 
@@ -1220,9 +1197,7 @@ export default function App() {
         const interval = setInterval(() => {
             const currentUrl = window.location.href;
 
-            console.log("currentUrl:", currentUrl);
-
-            if (currentUrl !== lastUrl) {
+             if (currentUrl !== lastUrl) {
                 lastUrl = currentUrl;
                 setUrl(currentUrl);
             }
@@ -1384,7 +1359,6 @@ export default function App() {
     
     function isTextObject(value: unknown): value is TextObject {
 
-        console.log('isTextObject?');
         if (typeof value !== "object" || value === null) {
             return false;
         }
@@ -1402,13 +1376,6 @@ export default function App() {
         const normalizedLocationIsPoint = isPoint(text.normalizedLocation);
 
         const viewportWidthValid = typeof text.viewportWidth === "number";
-
-        console.log(`isString ${contentIsString}, 
-            lengthValid ${contentLengthValid}, 
-            locationIsPoint: ${locationIsPoint},
-            normlocationIsPoint: ${normalizedLocationIsPoint},
-            viewpointWidthValid: ${viewportWidthValid}`)
-        
 
         return (
             contentIsString &&
@@ -1469,7 +1436,6 @@ export default function App() {
     function isDocument(value: unknown): value is any {
         if (typeof value !== "object" || value === null) {
 
-            console.log('documnt not an object.')
             return false;
         }
 
@@ -1477,7 +1443,6 @@ export default function App() {
         const document = value as Record<string, unknown>;
     
 
-        console.log('isDocument: ', document);
         const validTexts =
             document.texts === "stub" ||
             (
@@ -1506,8 +1471,6 @@ export default function App() {
                 return;
             }
 
-            console.log('parsed post: ', parsed);
-
             if(!isPost(parsed)) { 
                 console.warn("not a post");
                
@@ -1515,9 +1478,7 @@ export default function App() {
             }
             let verified = await verifySignature(parsed) 
 
-            console.log('verified: ', verified);
             if(!verified) {
-                console.log('invasid signature');
                 return;
             }
 
@@ -1531,7 +1492,6 @@ export default function App() {
                 return;
             }
 
-            console.log('doc1: ', decoded);
             
             
             let document:unknown;
@@ -1549,28 +1509,17 @@ export default function App() {
             let post = objectsToArrays(document);
 
 
-            console.log('post test: ', post);
             if(!isDocument(post.payload)) { 
              
                 console.warn("not a document");
                 return;
             }
 
-            console.log('post: ', post);
-
-            
             if(post._pub !== sourcePublicKey) {
-                console.log('fake message stuffed')
                 return;
             } 
             
             
-            console.log('verified pubkey: ', post._pub);
-
-
-
-            console.log('other text');
-
             if (post.payload?.drawing !== "stub" && post.payload?.drawing) {
 
                 for (const stroke of post.payload.drawing.strokes) {
@@ -1624,7 +1573,6 @@ export default function App() {
     function renderCurrentPage() {
 
 
-        console.log('******* reloading via renderCurrentPage')
         drawings.current = [];
 
         other_texts.current = [];
@@ -1642,7 +1590,6 @@ export default function App() {
             if(j>=posts.current.length) continue;
             let item = posts.current[j];
 
-            console.log('attempt parse: ', item);
             parseItem(item,item.sourcePublicKey,item._?.[">"]?.document);
 
             forceUpdate(v => v + 1);
@@ -1681,7 +1628,6 @@ export default function App() {
         
         if(user.is) {
 
-            console.log("********* reloading via user.is")
               
             const our_pub = user.is.pub;
             sha256(url).then((page:string)=>{
@@ -1708,7 +1654,6 @@ export default function App() {
                     let verified = await verifySignature(parsed) 
 
                     if(!verified) {
-                        console.log('invasid signature');
                         return;
                     }
 
@@ -1737,8 +1682,7 @@ export default function App() {
 
                     
                     if(post._pub !== our_pub) {
-                        console.log('fake message stuffed')
-                        return;
+                       return;
                     } 
                     
                     if (post.payload?.drawing !== "stub" && post.payload?.drawing) {
@@ -1794,8 +1738,6 @@ export default function App() {
                 .once((value:any, pub:string) => {
 
 
-                    console.log("========== POSTS INDEX ==========");
-                    console.dir(value, { depth: null });
                     
 
                     if (value === undefined) return;
@@ -1804,8 +1746,6 @@ export default function App() {
                     if(pub === our_pub) return;
 
                     const soul = getPostDocumentSoul(page, pub);
-
-                    console.log('getting soul! soul: ', soul);
 
                     gun.get(soul).once(async (item:any) => {
 
@@ -1880,9 +1820,6 @@ export default function App() {
                 .map()
                 .once((value:any, pub:string) => {
 
-                    console.log("========== POSTS INDEX ==========");
-                    console.dir(value, { depth: null });
-                    
                     if (value === undefined) return;
                         // this pub has a discovery record
                     
@@ -1890,10 +1827,7 @@ export default function App() {
 
                     const soul = getPostDocumentSoul(page, pub);
 
-                    console.log('getting soul! soul: ', soul);
-
                     
-
                     gun.get(soul).once(async (item:any) => {
 
 
@@ -2070,13 +2004,6 @@ export default function App() {
             const width = Math.max(scroller.scrollWidth, window.innerWidth);
             const height = Math.max(scroller.scrollHeight, window.innerHeight);
             
-
-            console.log('resizeCanvas: ', other_texts_display.current);
-         
-
-
-           
-        
             rootElement.style.width = width + "px";
             rootElement.style.height = height + "px";
         
@@ -2218,7 +2145,6 @@ const textLimitErrorTimer = useRef<number | null>(null);
 
             if (textCount >= 8) {
 
-                console.log('textPoint: ', p.x, p.y);
                 setTextLimitError({
                     x: p.x,
                     y: p.y,
@@ -2529,13 +2455,6 @@ const textLimitErrorTimer = useRef<number | null>(null);
         const scrollTop = window.scrollY;
         const viewportHeight = window.innerHeight;
     
-        console.log(
-            other_texts_display.current.map(t => ({
-                id: (t.text as any).id,
-                y: t.text.location.y
-            }))
-        );
-
         let above = 0;
         let below = 0;
 
@@ -2547,7 +2466,6 @@ const textLimitErrorTimer = useRef<number | null>(null);
                 window.innerWidth - textObject.text.viewportWidth
             );
         
-            console.log('deltaText: ', deltaText);
         
             const textApplicable = deltaText < 40;
         
@@ -2561,9 +2479,7 @@ const textLimitErrorTimer = useRef<number | null>(null);
             }
         }
 
-        console.log('above: ', above);
-        console.log('below: ', below);
-    
+
         setTextsAbove(above);
         setTextsBelow(below);
     };
@@ -2631,7 +2547,6 @@ const textLimitErrorTimer = useRef<number | null>(null);
         window.innerWidth - textObject.text.viewportWidth
     );
 
-    console.log('deltaText: ', deltaText);
 
     const textApplicable = deltaText < 40;
 
