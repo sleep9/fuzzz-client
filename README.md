@@ -10,7 +10,7 @@
 To avoid googles distribution channels, Fuzzz must be installed manually using chrome developer mode. 
 
 In a directory of your choice via terminal, run 
-```git clone https://github.com/sleep9/fuzzz-client.git``` or download the [zip file](https://github.com/sleep9/fuzzz-client) and extract it.
+```git clone https://github.com/sleep9/fuzzz-client.git``` or download the [zip file](https://github.com/sleep9/fuzzz-client/archive/refs/head/main.zip) and extract it.
 - Go to chrome://extensions in the address bar.
 - Toggle Developer mode in the top-right corner.
 - Use Load unpacked to select the <i>/dist</i> folder within the extracted folder.
