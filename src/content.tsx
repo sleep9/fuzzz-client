@@ -40,6 +40,7 @@ const gunReady = (async () => {
         localStorage: false
     });
 
+
     mesh = (gun as any).back("opt.mesh");
     user = gun.user();
     
@@ -334,6 +335,200 @@ interface TextItemProps {
     textObject: TextDisplay;
 }
 
+const IMAGE_URL_PATTERN = /https?:\/\/[^\s<>"']+/gi;
+const IMAGE_PATH_PATTERN = /\.(?:avif|bmp|gif|jpe?g|png|svg|webp|tiff?)(?:$)/i;
+
+function getImageUrl(candidate: string): string | null {
+    // Sentence punctuation commonly follows pasted links; it is not part of the URL.
+    const cleaned = candidate.replace(/[),.!?;:]+$/g, "");
+
+    try {
+        const url = new URL(cleaned);
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+            return null;
+        }
+        return IMAGE_PATH_PATTERN.test(url.pathname) ? cleaned : null;
+    } catch {
+        return null;
+    }
+}
+
+interface ImageLinkProps {
+    url: string;
+}
+
+function ImageLink({ url }: ImageLinkProps) {
+    const anchorRef = useRef<HTMLAnchorElement>(null);
+    const [open, setOpen] = useState(false);
+    const [popupLeft, setPopupLeft] = useState(0);
+
+    const showPreview = () => {
+        const anchor = anchorRef.current;
+        if (anchor) {
+            const rect = anchor.getBoundingClientRect();
+            const margin = 8;
+            const maxPopupWidth = Math.min(412, window.innerWidth - margin * 2);
+
+            // Clamp the popup's viewport position, then convert it to a local
+            // offset from the link. Absolute positioning keeps it attached to
+            // the text without fixed-position containing-block surprises.
+            const desiredLeft = Math.max(
+                margin,
+                Math.min(rect.left, window.innerWidth - maxPopupWidth - margin)
+            );
+            setPopupLeft(desiredLeft - rect.left);
+        }
+        setOpen(true);
+    };
+
+    return (
+        <span
+            style={{
+                position: "relative",
+                display: "inline-block",
+                verticalAlign: "baseline",
+                pointerEvents: "auto",
+            }}
+            onMouseEnter={showPreview}
+            onMouseLeave={() => setOpen(false)}
+            onFocus={showPreview}
+            onBlur={() => setOpen(false)}
+        >
+            <a
+                ref={anchorRef}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                    color: "inherit",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 2,
+                    cursor: "pointer",
+                }}
+            >
+                {url}
+            </a>
+            {open && (
+                <div
+                    role="tooltip"
+                    style={{
+                        position: "absolute",
+                        top: "calc(100% + 8px)",
+                        left: popupLeft,
+                        right: "auto",
+                        zIndex: 2147483647,
+                        width: "max-content",
+                        maxWidth: "min(414px, calc(100vw - 16px))",
+                        maxHeight: "min(400px, calc(100vh - 16px))",
+                        padding: 6,
+                        boxSizing: "border-box",
+                        background: "#fff",
+                        border: "1px solid #d1d5db",
+                        borderRadius: 8,
+                        boxShadow: "0 8px 28px rgb(0 0 0 / 0.22)",
+                        pointerEvents: "none",
+                    }}
+                >
+                    <img
+                        src={url}
+                        alt="Image preview"
+                        onError={() => setOpen(false)}
+                        style={{
+                            display: "block",
+                            width: "auto",
+                            height: "auto",
+                            maxWidth: "min(400px, calc(100vw - 30px))",
+                            maxHeight: "min(400px, calc(100vh - 30px))",
+                            objectFit: "contain",
+                        }}
+                    />
+                </div>
+            )}
+        </span>
+    );
+}
+
+
+function LinkifiedLine({ text }: { text: string }) {
+    const parts: Array<{ text: string; url?: string; imageUrl?: string }> = [];
+    let lastIndex = 0;
+
+    for (const match of text.matchAll(IMAGE_URL_PATTERN)) {
+        const raw = match[0];
+        const index = match.index ?? 0;
+
+        // Sentence punctuation usually belongs to the surrounding text, not the URL.
+        const candidate = raw.replace(/[),.!?;:]+$/g, "");
+        let url: string;
+        try {
+            const parsed = new URL(candidate);
+            if (parsed.protocol !== "http:" && parsed.protocol !== "https:") continue;
+            url = candidate;
+        } catch {
+            continue;
+        }
+
+        if (index > lastIndex) {
+            parts.push({ text: text.slice(lastIndex, index) });
+        }
+
+        const imageUrl = getImageUrl(url);
+        parts.push(imageUrl ? { text: imageUrl, url: imageUrl, imageUrl } : { text: url, url });
+
+        const trailing = raw.slice(candidate.length);
+        if (trailing) parts.push({ text: trailing });
+        lastIndex = index + raw.length;
+    }
+
+    if (lastIndex === 0) return <>{text || "\u00A0"}</>;
+    if (lastIndex < text.length) parts.push({ text: text.slice(lastIndex) });
+
+    return (
+        <>
+            {parts.map((part, index) =>
+                part.imageUrl
+                    ? <ImageLink key={index} url={part.imageUrl} />
+                    : part.url
+                        ? (
+                            <a
+                                key={index}
+                                href={part.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    color: "inherit",
+                                    textDecoration: "underline",
+                                    textUnderlineOffset: 2,
+                                    cursor: "pointer",
+                                    pointerEvents: "auto",
+                                }}
+                            >
+                                {part.url}
+                            </a>
+                        )
+                        : <span key={index}>{part.text}</span>
+            )}
+        </>
+    );
+}
+
+
+interface TextItemProps {
+    id: string;
+    since: string;
+    menuActive: boolean;
+    visibilityCallback: () => void;
+    visible: boolean;
+    location: Point;
+    removeCallback: () => void;
+    dragCallback: (e: React.PointerEvent) => void;
+    zIndex: number;
+    lines: string[];
+    index: number;
+    textObject: TextDisplay;
+}
+
+
 function TextItem({
     id,
     since,
@@ -351,6 +546,41 @@ function TextItem({
 
     const rightAligned = location.x > window.innerWidth / 2;
     const moveToBottom = location.y < 40;
+    const dotRef = useRef<HTMLDivElement>(null);
+    const ringRef = useRef<HTMLSpanElement>(null);
+
+    // Animate only the outer ring, never the dot itself, so the original dot
+    // border remains visible and keeps its original thickness during the pulse.
+    useEffect(() => {
+        const dot = dotRef.current;
+        const ring = ringRef.current;
+        if (!dot || !ring || typeof IntersectionObserver === "undefined") return;
+
+        let wasInView = false;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                const isInView = Boolean(entry?.isIntersecting);
+                if (isInView && !wasInView) {
+                    ring.animate(
+                        [
+                            { transform: "scale(1)", opacity: 0.65 },
+                            { transform: "scale(6)", opacity: 0 },
+                        ],
+                        {
+                            duration: 750,
+                            easing: "ease-out",
+                            iterations: 1,
+                        }
+                    );
+                }
+                wasInView = isInView;
+            },
+            { threshold: 0.1 }
+        );
+
+        observer.observe(dot);
+        return () => observer.disconnect();
+    }, []);
 
     return (
         <div
@@ -499,7 +729,7 @@ function TextItem({
                                 marginBottom: "-8px",
                             }}
                         >
-                            {line || "\u00A0"}
+                            <LinkifiedLine text={line} />
                         </div>
                     ))}
 
@@ -519,6 +749,7 @@ function TextItem({
 
                 {/* DOT */}
                 <div
+                    ref={dotRef}
                     className={
                         visible
                             ? "text-dot toggled"
@@ -527,7 +758,7 @@ function TextItem({
                     onClick={visibilityCallback}
                     style={{
                         position: "absolute",
-                        left: rightAligned ? 0 : 0,
+                        left: 0,
                         top: 0,
                         pointerEvents: "auto",
                         width: 5,
@@ -535,12 +766,29 @@ function TextItem({
                         borderRadius: "50%",
                         cursor: "pointer",
                     }}
-                />
+                >
+                    <span
+                        ref={ringRef}
+                        aria-hidden="true"
+                        style={{
+                            position: "absolute",
+                            inset: -1,
+                            border: "1px solid currentColor",
+                            borderRadius: "50%",
+                            boxSizing: "border-box",
+                            pointerEvents: "none",
+                            opacity: 0,
+                            transform: "scale(1)",
+                        }}
+                    />
+                </div>
 
             </div>
         </div>
     );
 }
+
+
 
 function workerSolve(
     pageHash: string,

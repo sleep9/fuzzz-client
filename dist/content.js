@@ -58973,7 +58973,6 @@ var gunReady = (async () => {
 	user = gun.user();
 	const originalHear = mesh.hear;
 	mesh.hear = function(raw, peer) {
-		console.log("mesh.hear:", raw);
 		let parsed;
 		try {
 			if (typeof raw === "string") parsed = JSON.parse(raw);
@@ -59021,7 +59020,6 @@ var workerBuild = async () => {
 	const workerBlobUrl = URL.createObjectURL(new Blob([workerCode], { type: "application/javascript" }));
 	worker = new Worker(workerBlobUrl);
 	const wasmBytes = await getEquixWasm();
-	console.log("Received Equi-X WASM:", wasmBytes.byteLength);
 	worker.postMessage({
 		import: depBlobUrl,
 		wasmBytes
@@ -59079,9 +59077,164 @@ function since(timestamp) {
 	if (months < 12) return `${months}mo ago`;
 	return `${Math.floor(months / 12)}y ago`;
 }
+var IMAGE_URL_PATTERN = /https?:\/\/[^\s<>"']+/gi;
+var IMAGE_PATH_PATTERN = /\.(?:avif|bmp|gif|jpe?g|png|svg|webp|tiff?)(?:$)/i;
+function getImageUrl(candidate) {
+	const cleaned = candidate.replace(/[),.!?;:]+$/g, "");
+	try {
+		const url = new URL(cleaned);
+		if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+		return IMAGE_PATH_PATTERN.test(url.pathname) ? cleaned : null;
+	} catch {
+		return null;
+	}
+}
+function ImageLink({ url }) {
+	const anchorRef = (0, import_react.useRef)(null);
+	const [open, setOpen] = (0, import_react.useState)(false);
+	const [popupLeft, setPopupLeft] = (0, import_react.useState)(0);
+	const showPreview = () => {
+		const anchor = anchorRef.current;
+		if (anchor) {
+			const rect = anchor.getBoundingClientRect();
+			const margin = 8;
+			const maxPopupWidth = Math.min(412, window.innerWidth - margin * 2);
+			const desiredLeft = Math.max(margin, Math.min(rect.left, window.innerWidth - maxPopupWidth - margin));
+			setPopupLeft(desiredLeft - rect.left);
+		}
+		setOpen(true);
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+		style: {
+			position: "relative",
+			display: "inline-block",
+			verticalAlign: "baseline",
+			pointerEvents: "auto"
+		},
+		onMouseEnter: showPreview,
+		onMouseLeave: () => setOpen(false),
+		onFocus: showPreview,
+		onBlur: () => setOpen(false),
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+			ref: anchorRef,
+			href: url,
+			target: "_blank",
+			rel: "noopener noreferrer",
+			style: {
+				color: "inherit",
+				textDecoration: "underline",
+				textUnderlineOffset: 2,
+				cursor: "pointer"
+			},
+			children: url
+		}), open && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			role: "tooltip",
+			style: {
+				position: "absolute",
+				top: "calc(100% + 8px)",
+				left: popupLeft,
+				right: "auto",
+				zIndex: 2147483647,
+				width: "max-content",
+				maxWidth: "min(414px, calc(100vw - 16px))",
+				maxHeight: "min(400px, calc(100vh - 16px))",
+				padding: 6,
+				boxSizing: "border-box",
+				background: "#fff",
+				border: "1px solid #d1d5db",
+				borderRadius: 8,
+				boxShadow: "0 8px 28px rgb(0 0 0 / 0.22)",
+				pointerEvents: "none"
+			},
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+				src: url,
+				alt: "Image preview",
+				onError: () => setOpen(false),
+				style: {
+					display: "block",
+					width: "auto",
+					height: "auto",
+					maxWidth: "min(400px, calc(100vw - 30px))",
+					maxHeight: "min(400px, calc(100vh - 30px))",
+					objectFit: "contain"
+				}
+			})
+		})]
+	});
+}
+function LinkifiedLine({ text }) {
+	const parts = [];
+	let lastIndex = 0;
+	for (const match of text.matchAll(IMAGE_URL_PATTERN)) {
+		const raw = match[0];
+		const index = match.index ?? 0;
+		const candidate = raw.replace(/[),.!?;:]+$/g, "");
+		let url;
+		try {
+			const parsed = new URL(candidate);
+			if (parsed.protocol !== "http:" && parsed.protocol !== "https:") continue;
+			url = candidate;
+		} catch {
+			continue;
+		}
+		if (index > lastIndex) parts.push({ text: text.slice(lastIndex, index) });
+		const imageUrl = getImageUrl(url);
+		parts.push(imageUrl ? {
+			text: imageUrl,
+			url: imageUrl,
+			imageUrl
+		} : {
+			text: url,
+			url
+		});
+		const trailing = raw.slice(candidate.length);
+		if (trailing) parts.push({ text: trailing });
+		lastIndex = index + raw.length;
+	}
+	if (lastIndex === 0) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: text || "\xA0" });
+	if (lastIndex < text.length) parts.push({ text: text.slice(lastIndex) });
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: parts.map((part, index) => part.imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ImageLink, { url: part.imageUrl }, index) : part.url ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+		href: part.url,
+		target: "_blank",
+		rel: "noopener noreferrer",
+		style: {
+			color: "inherit",
+			textDecoration: "underline",
+			textUnderlineOffset: 2,
+			cursor: "pointer",
+			pointerEvents: "auto"
+		},
+		children: part.url
+	}, index) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: part.text }, index)) });
+}
 function TextItem({ id, since, menuActive, visibilityCallback, visible, location, removeCallback, dragCallback, zIndex, lines, index, textObject }) {
 	const rightAligned = location.x > window.innerWidth / 2;
 	const moveToBottom = location.y < 40;
+	const dotRef = (0, import_react.useRef)(null);
+	const ringRef = (0, import_react.useRef)(null);
+	(0, import_react.useEffect)(() => {
+		const dot = dotRef.current;
+		const ring = ringRef.current;
+		if (!dot || !ring || typeof IntersectionObserver === "undefined") return;
+		let wasInView = false;
+		const observer = new IntersectionObserver(([entry]) => {
+			const isInView = Boolean(entry?.isIntersecting);
+			if (isInView && !wasInView) ring.animate([{
+				transform: "scale(1)",
+				opacity: .65
+			}, {
+				transform: "scale(6)",
+				opacity: 0
+			}], {
+				duration: 750,
+				easing: "ease-out",
+				iterations: 1
+			});
+			wasInView = isInView;
+		}, { threshold: .1 });
+		observer.observe(dot);
+		return () => observer.disconnect();
+	}, []);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		style: {
 			position: "absolute",
@@ -59173,7 +59326,7 @@ function TextItem({ id, since, menuActive, visibilityCallback, visible, location
 							whiteSpace: "pre",
 							marginBottom: "-8px"
 						},
-						children: line || "\xA0"
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LinkifiedLine, { text: line })
 					}, i)),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 						style: {
@@ -59195,18 +59348,33 @@ function TextItem({ id, since, menuActive, visibilityCallback, visible, location
 					})
 				]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				ref: dotRef,
 				className: visible ? "text-dot toggled" : "text-dot",
 				onClick: visibilityCallback,
 				style: {
 					position: "absolute",
-					left: rightAligned ? 0 : 0,
+					left: 0,
 					top: 0,
 					pointerEvents: "auto",
 					width: 5,
 					height: 5,
 					borderRadius: "50%",
 					cursor: "pointer"
-				}
+				},
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					ref: ringRef,
+					"aria-hidden": "true",
+					style: {
+						position: "absolute",
+						inset: -1,
+						border: "1px solid currentColor",
+						borderRadius: "50%",
+						boxSizing: "border-box",
+						pointerEvents: "none",
+						opacity: 0,
+						transform: "scale(1)"
+					}
+				})
 			})]
 		})
 	}, index);
@@ -59260,7 +59428,6 @@ function App() {
 				});
 			});
 			if (!response?.keys) {
-				console.log("logged out no keys");
 				drawing.current.strokes = [];
 				texts.current = [];
 				texts_display.current = [];
@@ -59280,7 +59447,6 @@ function App() {
 				});
 			});
 			forceUpdate((v) => v + 1);
-			console.log("USER RESTORED");
 		} catch (err) {
 			console.error("RESTORE USER FAILED:", err);
 		} finally {
@@ -59289,10 +59455,7 @@ function App() {
 	}
 	(0, import_react.useEffect)(() => {
 		const listener = (request) => {
-			if (request.action === "RESTOREUSER") {
-				console.log("restore user");
-				restoreUser();
-			}
+			if (request.action === "RESTOREUSER") restoreUser();
 		};
 		chrome.runtime.onMessage.addListener(listener);
 		return () => {
@@ -59303,7 +59466,6 @@ function App() {
 		return new Promise((resolve, reject) => {
 			try {
 				user.auth(alias, password, (ack) => {
-					console.log("auth ack:", ack);
 					if (ack.err) reject(new Error(ack.err));
 					else if (!user.is) reject(/* @__PURE__ */ new Error("Authentication succeeded but user.is is undefined."));
 					else {
@@ -59337,20 +59499,14 @@ function App() {
 		return new Promise((resolve, reject) => {
 			user.create(alias, password, (ack) => {
 				if (ack.err) {
-					console.log("create error");
 					reject(new Error(ack.err));
 					return;
 				}
 				user.auth(alias, password, (ack) => {
-					if (ack.err) {
-						console.log("auth error: ", ack.err);
-						reject(new Error(ack.err));
-					} else if (!user.is) {
-						console.log("auth failed");
-						reject(/* @__PURE__ */ new Error("User created but authentication failed."));
-					} else {
+					if (ack.err) reject(new Error(ack.err));
+					else if (!user.is) reject(/* @__PURE__ */ new Error("User created but authentication failed."));
+					else {
 						setLoggedIn(true);
-						console.log("auth success");
 						chrome.runtime.sendMessage({
 							action: "STOREUSER",
 							keys: user._.sea
@@ -59386,10 +59542,8 @@ function App() {
 			powRequests.set(id, {
 				resolve: (response) => {
 					clearTimeout(timeout);
-					console.log("pow challenge response recieved: ", response);
 					const target = BigInt(response.difficulty);
 					workerSolve(pageHash, pub, response.expires, target).then((solution) => {
-						console.log("solution:", solution);
 						resolve({
 							...response,
 							...solution
@@ -59401,7 +59555,6 @@ function App() {
 				},
 				reject
 			});
-			console.log("mesh: ", mesh);
 			const msg = {
 				dam: "fuzzz-pow",
 				type: "challenge-pow-request",
@@ -59492,9 +59645,7 @@ function App() {
 			};
 			const serialized = JSON.stringify(post);
 			gun.user().get("posts").get(post._page).put({ document: serialized });
-			console.log(signIndex);
 			const postKey = `${post._pub}:${post._page}`;
-			console.log("write success");
 			const indexedPost = {
 				_protocol: { version: 1 },
 				_sig: "",
@@ -59510,9 +59661,7 @@ function App() {
 			});
 			gun.get("@app").get("all").get(response.bucket).get(postKey).put({ document: indexDocument });
 			gun.get("@app").get(post._page).get("posts").get(post._pub).put(true);
-		} catch (error) {
-			console.log("upload error: ", error);
-		} finally {
+		} catch (error) {} finally {
 			uploading.current = false;
 			forceUpdate((v) => v + 1);
 			if (dirty.current) queueMicrotask(() => syncNow());
@@ -59521,7 +59670,6 @@ function App() {
 	function markDirty() {
 		version.current++;
 		dirty.current = true;
-		console.log("markDirty", version);
 		syncNow();
 	}
 	const [lineThickness, setLineThickness] = (0, import_react.useState)(2);
@@ -59568,7 +59716,6 @@ function App() {
 		let lastUrl = window.location.href;
 		const interval = setInterval(() => {
 			const currentUrl = window.location.href;
-			console.log("currentUrl:", currentUrl);
 			if (currentUrl !== lastUrl) {
 				lastUrl = currentUrl;
 				setUrl(currentUrl);
@@ -59645,7 +59792,6 @@ function App() {
 		return typeof point.x === "number" && typeof point.y === "number";
 	}
 	function isTextObject(value) {
-		console.log("isTextObject?");
 		if (typeof value !== "object" || value === null) return false;
 		const text = value;
 		const contentIsString = typeof text.content === "string";
@@ -59653,11 +59799,6 @@ function App() {
 		const locationIsPoint = isPoint(text.location);
 		const normalizedLocationIsPoint = isPoint(text.normalizedLocation);
 		const viewportWidthValid = typeof text.viewportWidth === "number";
-		console.log(`isString ${contentIsString}, 
-            lengthValid ${contentLengthValid}, 
-            locationIsPoint: ${locationIsPoint},
-            normlocationIsPoint: ${normalizedLocationIsPoint},
-            viewpointWidthValid: ${viewportWidthValid}`);
 		return contentIsString && contentLengthValid && locationIsPoint && normalizedLocationIsPoint && viewportWidthValid;
 	}
 	function isStroke(value) {
@@ -59675,12 +59816,8 @@ function App() {
 		return Array.isArray(drawing.strokes) && drawing.strokes.every(isStroke);
 	}
 	function isDocument(value) {
-		if (typeof value !== "object" || value === null) {
-			console.log("documnt not an object.");
-			return false;
-		}
+		if (typeof value !== "object" || value === null) return false;
 		const document = value;
-		console.log("isDocument: ", document);
 		const validTexts = document.texts === "stub" || Array.isArray(document.texts) && document.texts.every(isTextObject);
 		const validDrawing = document.drawing === "stub" || isDrawingDocument(document.drawing);
 		return validTexts && validDrawing;
@@ -59693,17 +59830,12 @@ function App() {
 			console.warn("Invalid parse: ", err);
 			return;
 		}
-		console.log("parsed post: ", parsed);
 		if (!isPost(parsed)) {
 			console.warn("not a post");
 			return;
 		}
 		let verified = await verifySignature(parsed);
-		console.log("verified: ", verified);
-		if (!verified) {
-			console.log("invasid signature");
-			return;
-		}
+		if (!verified) return;
 		let decoded;
 		try {
 			decoded = decodeURIComponent(escape(atob(verified)));
@@ -59711,7 +59843,6 @@ function App() {
 			console.warn("Invalid encoded document:", err);
 			return;
 		}
-		console.log("doc1: ", decoded);
 		let document;
 		try {
 			document = JSON.parse(decoded);
@@ -59720,18 +59851,11 @@ function App() {
 			return;
 		}
 		let post = objectsToArrays(document);
-		console.log("post test: ", post);
 		if (!isDocument(post.payload)) {
 			console.warn("not a document");
 			return;
 		}
-		console.log("post: ", post);
-		if (post._pub !== sourcePublicKey) {
-			console.log("fake message stuffed");
-			return;
-		}
-		console.log("verified pubkey: ", post._pub);
-		console.log("other text");
+		if (post._pub !== sourcePublicKey) return;
 		if (post.payload?.drawing !== "stub" && post.payload?.drawing) {
 			for (const stroke of post.payload.drawing.strokes) {
 				stroke.points = decodePoints(stroke.points);
@@ -59757,7 +59881,6 @@ function App() {
 		forceUpdate((v) => v + 1);
 	}
 	function renderCurrentPage() {
-		console.log("******* reloading via renderCurrentPage");
 		drawings.current = [];
 		other_texts.current = [];
 		other_texts_display.current = [];
@@ -59767,7 +59890,6 @@ function App() {
 		for (var j = startIndex; j < endIndex; j++) {
 			if (j >= posts.current.length) continue;
 			let item = posts.current[j];
-			console.log("attempt parse: ", item);
 			parseItem(item, item.sourcePublicKey, item._?.[">"]?.document);
 			forceUpdate((v) => v + 1);
 		}
@@ -59787,7 +59909,6 @@ function App() {
 		posts.current = [];
 		const seenPosts = /* @__PURE__ */ new Set();
 		if (user.is) {
-			console.log("********* reloading via user.is");
 			const our_pub = user.is.pub;
 			sha256(url).then((page) => {
 				const our_soul = getPostDocumentSoul(page, our_pub);
@@ -59801,10 +59922,7 @@ function App() {
 						return;
 					}
 					let verified = await verifySignature(parsed);
-					if (!verified) {
-						console.log("invasid signature");
-						return;
-					}
+					if (!verified) return;
 					let decoded;
 					try {
 						decoded = decodeURIComponent(escape(atob(verified)));
@@ -59820,10 +59938,7 @@ function App() {
 						return;
 					}
 					let post = objectsToArrays(document);
-					if (post._pub !== our_pub) {
-						console.log("fake message stuffed");
-						return;
-					}
+					if (post._pub !== our_pub) return;
 					if (post.payload?.drawing !== "stub" && post.payload?.drawing) {
 						for (const stroke of post.payload.drawing.strokes) {
 							stroke.points = decodePoints(stroke.points);
@@ -59846,13 +59961,10 @@ function App() {
 				});
 				let pending = 0;
 				gun.get("@app").get(page).get("posts").map().once((value, pub) => {
-					console.log("========== POSTS INDEX ==========");
-					console.dir(value, { depth: null });
 					if (value === void 0) return;
 					if (typeof pub !== "string") return;
 					if (pub === our_pub) return;
 					const soul = getPostDocumentSoul(page, pub);
-					console.log("getting soul! soul: ", soul);
 					gun.get(soul).once(async (item) => {
 						if (item) {
 							const timestamp = item._?.[">"]?.document;
@@ -59881,11 +59993,8 @@ function App() {
 		} else sha256(url).then((page) => {
 			let pending = 0;
 			gun.get("@app").get(page).get("posts").map().once((value, pub) => {
-				console.log("========== POSTS INDEX ==========");
-				console.dir(value, { depth: null });
 				if (value === void 0) return;
 				const soul = getPostDocumentSoul(page, pub);
-				console.log("getting soul! soul: ", soul);
 				gun.get(soul).once(async (item) => {
 					if (item) {
 						const timestamp = item._?.[">"]?.document;
@@ -59972,7 +60081,6 @@ function App() {
 			const scroller = document.scrollingElement ?? document.documentElement;
 			const width = Math.max(scroller.scrollWidth, window.innerWidth);
 			const height = Math.max(scroller.scrollHeight, window.innerHeight);
-			console.log("resizeCanvas: ", other_texts_display.current);
 			rootElement.style.width = width + "px";
 			rootElement.style.height = height + "px";
 			canvas.width = width;
@@ -60048,7 +60156,6 @@ function App() {
 		if (addTextEnabled) {
 			const p = getPoint(e);
 			if (texts.current.length >= 8) {
-				console.log("textPoint: ", p.x, p.y);
 				setTextLimitError({
 					x: p.x,
 					y: p.y
@@ -60221,22 +60328,14 @@ function App() {
 	const updateOffscreenTextCounts = () => {
 		const scrollTop = window.scrollY;
 		const viewportHeight = window.innerHeight;
-		console.log(other_texts_display.current.map((t) => ({
-			id: t.text.id,
-			y: t.text.location.y
-		})));
 		let above = 0;
 		let below = 0;
 		for (const textObject of other_texts_display.current) {
 			const y = textObject.text.location.y - scrollTop;
-			const deltaText = Math.abs(window.innerWidth - textObject.text.viewportWidth);
-			console.log("deltaText: ", deltaText);
-			if (!(deltaText < 40)) continue;
+			if (!(Math.abs(window.innerWidth - textObject.text.viewportWidth) < 40)) continue;
 			if (y < 0) above++;
 			else if (y > viewportHeight) below++;
 		}
-		console.log("above: ", above);
-		console.log("below: ", below);
 		setTextsAbove(above);
 		setTextsBelow(below);
 	};
@@ -60278,9 +60377,7 @@ function App() {
 			}),
 			textOwnedEnabled && texts_display.current.map((textObject, index) => {
 				const x = textObject.text.normalizedLocation.x * window.innerWidth;
-				const deltaText = Math.abs(window.innerWidth - textObject.text.viewportWidth);
-				console.log("deltaText: ", deltaText);
-				if (!(deltaText < 40)) return null;
+				if (!(Math.abs(window.innerWidth - textObject.text.viewportWidth) < 40)) return null;
 				const lines = textObject.text.content.split("\n");
 				const removeCallback = () => {
 					texts_display.current = texts_display.current.filter((_, i) => i !== index);
